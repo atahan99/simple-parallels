@@ -1,0 +1,6 @@
+node_modules/
+dist/
+.npm-cache/
+
+# Local MCP path (copy from .cursor/mcp.json.example)
+.cursor/mcp.json

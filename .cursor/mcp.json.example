@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "simple-parallels": {
+      "command": "node",
+      "args": ["/path/to/simple-parallels/dist/index.js"],
+      "env": {
+        "PRLCTL_PATH": "/usr/local/bin/prlctl"
+      }
+    }
+  }
+}
