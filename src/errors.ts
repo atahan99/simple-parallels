@@ -27,6 +27,16 @@ export function prlctlNotFoundMessage(path: string): string {
   return `prlctl not found at ${path}. Install Parallels Desktop CLI tools.`;
 }
 
+const PARALLELS_NOT_RUNNING_MESSAGE =
+  "Parallels Desktop does not appear to be running.";
+
+export function isParallelsNotRunningError(error: unknown): boolean {
+  return (
+    error instanceof PrlctlError &&
+    error.message === PARALLELS_NOT_RUNNING_MESSAGE
+  );
+}
+
 function snippet(text: string, maxLength = 500): string {
   if (text.length <= maxLength) {
     return text;
@@ -42,7 +52,7 @@ export function mapPrlctlFailure(
   const combined = `${stderr}\n${stdout}`;
 
   if (combined.includes("Failed to initialize Parallels Desktop")) {
-    throw new PrlctlError("Parallels Desktop does not appear to be running.");
+    throw new PrlctlError(PARALLELS_NOT_RUNNING_MESSAGE);
   }
 
   const parts: string[] = ["prlctl command failed."];

@@ -1,6 +1,8 @@
 import type { McpServer } from "@modelcontextprotocol/server";
 import { z } from "zod";
 import { formatToolError, prlctlNotFoundMessage } from "./errors.js";
+import { openParallelsDesktopForUser } from "./parallels-app.js";
+import { runVmLifecycleAction } from "./vm-lifecycle.js";
 import {
   createSnapshot,
   deleteSnapshot,
@@ -125,7 +127,34 @@ function actionSuccessMessage(action: string, vm: string, output: string) {
     : `${action} succeeded for "${vm}".`;
 }
 
+function lifecycleSuccessMessage(
+  action: string,
+  vm: string,
+  output: string,
+  notes: string[],
+) {
+  const parts = [...notes, actionSuccessMessage(action, vm, output)];
+  return parts.join("\n");
+}
+
 export function registerParallelsTools(server: McpServer): void {
+  server.registerTool(
+    "open_parallels_desktop",
+    {
+      title: "Open Parallels Desktop",
+      description:
+        "Launch the Parallels Desktop app on macOS. Use when prlctl reports Parallels is not running; wait a few seconds before other tools.",
+    },
+    async () => {
+      try {
+        const message = await openParallelsDesktopForUser();
+        return textResult(message);
+      } catch (error) {
+        return toolError(error);
+      }
+    },
+  );
+
   server.registerTool(
     "list_vms",
     {
@@ -208,13 +237,50 @@ export function registerParallelsTools(server: McpServer): void {
     },
   );
 
-  const simpleActions = [
+  const lifecycleDescription =
+    "Ensures Parallels Desktop is running (opens in background if needed).";
+
+  const lifecycleActions = [
     {
       name: "start_vm",
       action: "start" as const,
       title: "Start VM",
-      description: "Start a Parallels virtual machine.",
+      description: `Start a Parallels virtual machine. ${lifecycleDescription}`,
     },
+    {
+      name: "restart_vm",
+      action: "restart" as const,
+      title: "Restart VM",
+      description: `Restart a Parallels virtual machine. ${lifecycleDescription}`,
+    },
+    {
+      name: "resume_vm",
+      action: "resume" as const,
+      title: "Resume VM",
+      description: `Resume a suspended Parallels virtual machine. ${lifecycleDescription}`,
+    },
+  ];
+
+  for (const { name, action, title, description } of lifecycleActions) {
+    server.registerTool(
+      name,
+      { title, description, inputSchema: vmSchema },
+      async ({ vm }) => {
+        if (!prlctlAvailable) return unavailableResult();
+        try {
+          const validVm = assertValidVm(vm);
+          const { output, notes } = await runVmLifecycleAction(action, validVm);
+          return textResult(
+            lifecycleSuccessMessage(action, validVm, output, notes),
+          );
+        } catch (error) {
+          return toolError(error);
+        }
+      },
+    );
+  }
+
+  const simpleActions = [
     {
       name: "stop_vm",
       action: "stop" as const,
@@ -222,23 +288,11 @@ export function registerParallelsTools(server: McpServer): void {
       description: "Gracefully stop a Parallels virtual machine.",
     },
     {
-      name: "restart_vm",
-      action: "restart" as const,
-      title: "Restart VM",
-      description: "Restart a Parallels virtual machine.",
-    },
-    {
       name: "suspend_vm",
       action: "suspend" as const,
       title: "Suspend VM",
       description:
         "Suspend a VM to disk (saved state). Use pause_vm for in-memory pause.",
-    },
-    {
-      name: "resume_vm",
-      action: "resume" as const,
-      title: "Resume VM",
-      description: "Resume a suspended Parallels virtual machine.",
     },
     {
       name: "pause_vm",
