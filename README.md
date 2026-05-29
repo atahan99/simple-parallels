@@ -1,6 +1,6 @@
 # simple-parallels
 
-MCP server for Parallels Desktop VM lifecycle. Exposes seven tools that call fixed `prlctl` commands via `execFile` (no shell, no arbitrary CLI).
+MCP server for Parallels Desktop VM lifecycle and snapshots. Sixteen tools call fixed `prlctl` commands via `execFile` (no shell, no arbitrary CLI).
 
 **Requirements:** macOS, [Parallels Desktop](https://www.parallels.com/) running, `prlctl` (default `/usr/local/bin/prlctl`), Node.js 20+.
 
@@ -45,14 +45,25 @@ Reload **simple-parallels** in **Cursor Settings → MCP**, with Parallels Deskt
 | Tool | Input | Description |
 |------|-------|-------------|
 | `list_vms` | — | List all VMs |
-| `get_vm_status` | `vm` | Status by name or UUID |
+| `list_running_vms` | — | List running VMs only |
+| `show_vm_info` | `vm` | Full VM configuration (JSON) |
+| `get_vm_status` | `vm` | Lightweight status by name or UUID |
 | `start_vm` | `vm` | Start a VM |
-| `stop_vm` | `vm` | Stop a VM |
+| `stop_vm` | `vm` | Gracefully stop a VM |
+| `force_stop_vm` | `vm` | Force stop (`--kill`) |
 | `restart_vm` | `vm` | Restart a VM |
-| `suspend_vm` | `vm` | Suspend a VM |
+| `pause_vm` | `vm` | Pause in memory |
 | `resume_vm` | `vm` | Resume a suspended VM |
+| `suspend_vm` | `vm` | Suspend to disk (saved state) |
+| `drop_vm_state` | `vm` | Drop suspended state (`--drop-state`) |
+| `list_snapshots` | `vm` | List snapshots for a VM |
+| `create_snapshot` | `vm`, `name`, `description?` | Create a snapshot |
+| `revert_to_snapshot` | `vm`, `snapshot_id`, `skip_resume?` | Revert to a snapshot |
+| `delete_snapshot` | `vm`, `snapshot_id`, `include_children?` | Delete a snapshot |
 
-`vm` accepts a display name (e.g. `Ubuntu 24.04 ARM64`) or UUID (with or without `{...}`). Run `list_vms` first for exact names.
+`vm` accepts a display name (e.g. `Ubuntu 24.04 ARM64`) or UUID (with or without `{...}`). Run `list_vms` for exact names. For snapshots, run `list_snapshots` first to get snapshot IDs.
+
+**Pause vs suspend:** `pause_vm` pauses in memory; `suspend_vm` saves state to disk.
 
 ## Configuration
 
@@ -62,4 +73,4 @@ Reload **simple-parallels** in **Cursor Settings → MCP**, with Parallels Deskt
 
 ## Out of scope
 
-Guest exec, snapshots, clone/delete, file transfer, arbitrary `prlctl` commands.
+Guest exec, clone/delete VM, file transfer, arbitrary `prlctl` commands.

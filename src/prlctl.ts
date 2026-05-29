@@ -22,6 +22,14 @@ export interface VmRecord {
   ip_configured?: boolean | string;
 }
 
+export type VmPowerAction =
+  | "start"
+  | "stop"
+  | "restart"
+  | "suspend"
+  | "resume"
+  | "pause";
+
 export async function initPrlctl(): Promise<void> {
   try {
     await access(PRLCTL_PATH, constants.X_OK);
@@ -66,18 +74,79 @@ async function runPrlctl(args: readonly string[]): Promise<string> {
   }
 }
 
-export async function listVms(): Promise<VmRecord[]> {
-  const output = await runPrlctl(["list", "--all", "-j"]);
+function parseVmList(output: string): VmRecord[] {
   if (!output) {
     return [];
   }
-
   return JSON.parse(output) as VmRecord[];
 }
 
+export async function listVms(): Promise<VmRecord[]> {
+  const output = await runPrlctl(["list", "--all", "-j"]);
+  return parseVmList(output);
+}
+
+export async function listRunningVms(): Promise<VmRecord[]> {
+  const output = await runPrlctl(["list", "-j"]);
+  return parseVmList(output);
+}
+
+export async function showVmInfo(vm: string): Promise<string> {
+  return runPrlctl(["list", "-i", "-j", vm]);
+}
+
 export async function vmAction(
-  action: "start" | "stop" | "restart" | "suspend" | "resume",
+  action: VmPowerAction,
   vm: string,
+  flags: readonly string[] = [],
 ): Promise<string> {
-  return runPrlctl([action, vm]);
+  return runPrlctl([action, vm, ...flags]);
+}
+
+export async function forceStopVm(vm: string): Promise<string> {
+  return runPrlctl(["stop", vm, "--kill"]);
+}
+
+export async function dropVmState(vm: string): Promise<string> {
+  return runPrlctl(["stop", vm, "--drop-state"]);
+}
+
+export async function listSnapshots(vm: string): Promise<string> {
+  return runPrlctl(["snapshot-list", vm, "-j"]);
+}
+
+export async function createSnapshot(
+  vm: string,
+  name: string,
+  description?: string,
+): Promise<string> {
+  const args = ["snapshot", vm, "-n", name];
+  if (description) {
+    args.push("-d", description);
+  }
+  return runPrlctl(args);
+}
+
+export async function revertToSnapshot(
+  vm: string,
+  snapshotId: string,
+  skipResume = false,
+): Promise<string> {
+  const args = ["snapshot-switch", vm, "--id", snapshotId];
+  if (skipResume) {
+    args.push("--skip-resume");
+  }
+  return runPrlctl(args);
+}
+
+export async function deleteSnapshot(
+  vm: string,
+  snapshotId: string,
+  includeChildren = false,
+): Promise<string> {
+  const args = ["snapshot-delete", vm, "--id", snapshotId];
+  if (includeChildren) {
+    args.push("-c");
+  }
+  return runPrlctl(args);
 }
